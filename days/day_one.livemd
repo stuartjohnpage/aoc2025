@@ -109,7 +109,9 @@ puzzle_input = practice_input
 
 ```elixir
 defmodule DayOne do
+
   def part_one(puzzle_input) do
+    Counter.start_link(0)
     # parse out the direction and the integer - done
     # track where the dial ends up pointing
     # count the number of times it points at zero
@@ -128,7 +130,10 @@ defmodule DayOne do
     end)
     IO.inspect(resultant_zeros, label: :number_of_zeros)
     IO.inspect(final_location, label: :final_location)
-    
+    ### Part Two
+    part_two_result = Counter.value()
+    IO.inspect(part_two_result)
+    Counter.stop()
   end
 
   def turn_dial(start, _direction, 0) do
@@ -137,7 +142,12 @@ defmodule DayOne do
 
   def turn_dial(start, direction, amount) do
     result = dial_click(start, direction)
-    if result == 0, do: IO.inspect("An extra click?")
+    ### Part Two
+    if result == 0 do
+      Counter.increment()
+      IO.inspect("xtra zero!")
+      IO.inspect(Counter.value())
+    end
     turn_dial(result, direction, amount - 1)
   end
 
@@ -162,7 +172,28 @@ defmodule DayOne do
     {String.to_existing_atom(direction), String.to_integer(amount)}
   end
   
+end
+```
 
+```elixir
+defmodule Counter do
+  use Agent
+
+  def start_link(initial_value) do
+    Agent.start_link(fn -> initial_value end, name: __MODULE__)
+  end
+
+  def stop() do
+    Agent.stop(__MODULE__, :normal, :infinity)
+  end
+
+  def value do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def increment do
+    Agent.update(__MODULE__, &(&1 + 1))
+  end
 end
 ```
 
