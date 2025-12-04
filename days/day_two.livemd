@@ -30,3 +30,205 @@ defmodule Utilities do
   end
 end
 ```
+
+--- Day 2: Gift Shop ---
+You get inside and take the elevator to its only other stop: the gift shop. "Thank you for visiting the North Pole!" gleefully exclaims a nearby sign. You aren't sure who is even allowed to visit the North Pole, but you know you can access the lobby through here, and from there you can access the rest of the North Pole base.
+
+As you make your way through the surprisingly extensive selection, one of the clerks recognizes you and asks for your help.
+
+As it turns out, one of the younger Elves was playing on a gift shop computer and managed to add a whole bunch of invalid product IDs to their gift shop database! Surely, it would be no trouble for you to identify the invalid product IDs for them, right?
+
+They've even checked most of the product ID ranges already; they only have a few product ID ranges (your puzzle input) that you'll need to check. For example:
+
+11-22,95-115,998-1012,1188511880-1188511890,222220-222224,
+1698522-1698528,446443-446449,38593856-38593862,565653-565659,
+824824821-824824827,2121212118-2121212124
+(The ID ranges are wrapped here for legibility; in your input, they appear on a single long line.)
+
+The ranges are separated by commas (,); each range gives its first ID and last ID separated by a dash (-).
+
+Since the young Elf was just doing silly patterns, you can find the invalid IDs by looking for any ID which is made only of some sequence of digits repeated twice. So, 55 (5 twice), 6464 (64 twice), and 123123 (123 twice) would all be invalid IDs.
+
+None of the numbers have leading zeroes; 0101 isn't an ID at all. (101 is a valid ID that you would ignore.)
+
+Your job is to find all of the invalid IDs that appear in the given ranges. In the above example:
+
+11-22 has two invalid IDs, 11 and 22.
+95-115 has one invalid ID, 99.
+998-1012 has one invalid ID, 1010.
+1188511880-1188511890 has one invalid ID, 1188511885.
+222220-222224 has one invalid ID, 222222.
+1698522-1698528 contains no invalid IDs.
+446443-446449 has one invalid ID, 446446.
+38593856-38593862 has one invalid ID, 38593859.
+The rest of the ranges contain no invalid IDs.
+Adding up all the invalid IDs in this example produces 1227775554.
+
+What do you get if you add up all of the invalid IDs?
+
+```elixir
+defmodule Counter do
+  use Agent
+
+  def start_link(initial_value) do
+    Agent.start_link(fn -> initial_value end, name: __MODULE__)
+  end
+
+  def stop() do
+    Agent.stop(__MODULE__, :normal, :infinity)
+  end
+
+  def value do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def increment do
+    Agent.update(__MODULE__, &(&1 + 1))
+  end
+
+  def increase_by_value(value) do
+    Agent.update(__MODULE__, &(&1 + value))
+  end
+end
+```
+
+```elixir
+practice_input = ["11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124"]
+practice_input = ["95-115"]
+
+# puzzle_input = Utilities.read_data(2) |> Utilities.to_list()
+puzzle_input = practice_input
+```
+
+```elixir
+defmodule DayTwo do
+  def part_two(puzzle_input) do
+    # Counter.start_link(0)
+    ranges = 
+      puzzle_input
+      |> Enum.at(0)
+      |> String.split(",")
+      |> Enum.map(&get_range(&1))
+    Enum.each(ranges, &range_checker_part_two(&1))
+    # IO.inspect(Counter.value(), label: :final_count)
+    # Counter.stop()
+  end
+
+  def range_checker_part_two(range) do
+    Enum.each(range, &id_checker_part_two(&1, range))
+  end
+
+  def id_checker_part_two(id, range) do
+    IO.inspect(id)
+    IO.inspect(range)
+  end
+
+  
+# failed attempt
+
+  # def range_checker_part_two(range) do
+  #   Enum.each(range, &id_checker_part_two(&1, range))
+  # end
+
+  # def id_checker_part_two(id, range) do
+  #   IO.inspect(id, label: "checking this id")
+  #   [first_digit | rest] = Integer.digits(id)
+  #   results = recurive_check([first_digit], rest, range, [])
+  #   IO.inspect(results)
+  #   if not Enum.all?(results) do
+  #     IO.inspect("ID invalid")
+  #     IO.inspect(id)
+  #   end
+  # end
+
+  # def recurive_check(_current, [], _range, results) do
+  #   results
+  # end
+
+  # def recurive_check(current, remaining, range, results) do
+  #   [first | rest] = remaining
+  #   new_to_test = List.insert_at(current, -1, first)
+  #   to_test = Integer.undigits(new_to_test)
+  #   result = check_id_snippet(to_test, range)
+    
+  #   recurive_check(new_to_test, rest, range, [result | results])
+  # end
+
+  # # recursion is the way, maybe?
+
+  # # I'm trying to take the current set of digits, add the next
+  # # and then see if that (when split) equals itself
+
+    # -- PART ONE LOGIC --
+
+  def get_range(range) do
+    IO.inspect(range)
+     [start_digit, end_digit] = String.split(range, "-")
+      Range.new(String.to_integer(start_digit), String.to_integer(end_digit))
+  end
+
+  def in_range?(id, range) do
+    Enum.any?(range, fn id_from_range -> id == id_from_range end)
+  end
+
+  def part_one(puzzle_input) do
+    Counter.start_link(0)
+    # invalid ID is made upp of any ID which is made *only* of some seuqnce of digits repeated twice
+    # we only care about numbers with an even length
+    # split them in half, and compare? is it that simple? no way
+    ranges = 
+      puzzle_input
+      |> Enum.at(0)
+      |> String.split(",")
+      |> Enum.map(&get_range(&1))
+    Enum.each(ranges, &range_checker(&1))
+    IO.inspect(Counter.value(), label: :final_count)
+    Counter.stop()
+  end
+
+  def range_checker(range) do
+    Enum.each(range, &id_checker(&1))
+  end
+
+  def id_checker(id) do
+    # if ID length is odd, all good
+    # with 
+    with true <- id_even?(id),
+      true <- first_half_same_as_second?(id) do
+      Counter.increase_by_value(id)
+    else
+      _ -> 
+        false
+    end
+  end
+
+  def get_id_length(id) do
+    id
+    |> Integer.digits()
+    |> length()
+  end
+
+  def first_half_same_as_second?(id) do
+    length = get_id_length(id)
+    midway = trunc(length / 2)
+    {first_half, second_half} = 
+    id
+    |> Integer.to_string()
+    |> String.split_at(midway)
+
+    first_half == second_half
+  end
+
+  def id_even?(id) do
+    length = get_id_length(id)
+    if Integer.mod(length, 2) == 0, do: true, else: false
+    
+  end
+end
+```
+
+```elixir
+DayTwo.part_two(puzzle_input)
+
+
+```

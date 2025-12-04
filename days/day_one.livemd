@@ -104,7 +104,7 @@ practice_input = [
 ]
 
 puzzle_input = Utilities.read_data(1) |> Utilities.to_list()
-puzzle_input = practice_input
+# puzzle_input = practice_input
 ```
 
 ```elixir
@@ -132,7 +132,7 @@ defmodule DayOne do
     IO.inspect(final_location, label: :final_location)
     ### Part Two
     part_two_result = Counter.value()
-    IO.inspect(part_two_result)
+    IO.inspect(part_two_result, label: :part_two_results)
     Counter.stop()
   end
 
