@@ -1,0 +1,346 @@
+# Day Four
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+```elixir
+defmodule Utilities do
+  @moduledoc """
+  Provides utility functions to be used across days
+  """
+
+  def read_data(day) do
+    day_as_string =
+      day
+      |> Integer.to_string()
+      |> String.pad_leading(2, "0")
+
+    Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
+    |> Path.expand()
+    |> File.read!()
+  end
+
+  def to_list(big_string) do
+    String.split(big_string, "\n")
+  end
+end
+```
+
+```elixir
+defmodule Counter do
+  use Agent
+
+  def start_link(initial_value) do
+    Agent.start_link(fn -> initial_value end, name: __MODULE__)
+  end
+
+  def stop() do
+    Agent.stop(__MODULE__, :normal, :infinity)
+  end
+
+  def value do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def increment do
+    Agent.update(__MODULE__, &(&1 + 1))
+  end
+
+  def increase_by_value(value) do
+    Agent.update(__MODULE__, &(&1 + value))
+  end
+end
+```
+
+#### Day 4: Printing Department
+
+You ride the escalator down to the printing department. They're clearly getting ready for Christmas; they have lots of large rolls of paper everywhere, and there's even a massive printer in the corner (to handle the really big print jobs).
+
+Decorating here will be easy: they can make their own decorations. What you really need is a way to get further into the North Pole base while the elevators are offline.
+
+"Actually, maybe we can help with that," one of the Elves replies when you ask for help. "We're pretty sure there's a cafeteria on the other side of the back wall. If we could break through the wall, you'd be able to keep moving. It's too bad all of our forklifts are so busy moving those big rolls of paper around."
+
+If you can optimize the work the forklifts are doing, maybe they would have time to spare to break through the wall.
+
+The rolls of paper (@) are arranged on a large grid; the Elves even have a helpful diagram (your puzzle input) indicating where everything is located.
+
+For example:
+
+```
+..@@.@@@@.
+@@@.@.@.@@
+@@@@@.@.@@
+@.@@@@..@.
+@@.@@@@.@@
+.@@@@@@@.@
+.@.@.@.@@@
+@.@@@.@@@@
+.@@@@@@@@.
+@.@.@@@.@.
+```
+
+The forklifts can only access a roll of paper if there are fewer than four rolls of paper in the eight adjacent positions. If you can figure out which rolls of paper the forklifts can access, they'll spend less time looking and more time breaking down the wall to the cafeteria.
+
+In this example, there are 13 rolls of paper that can be accessed by a forklift (marked with x):
+
+```
+..xx.xx@x.
+x@@.@.@.@@
+@@@@@.x.@@
+@.@@@@..@.
+x@.@@@@.@x
+.@@@@@@@.@
+.@.@.@.@@@
+x.@@@.@@@@
+.@@@@@@@@.
+x.x.@@@.x.
+```
+
+Consider your complete diagram of the paper roll locations. How many rolls of paper can be accessed by a forklift?
+
+```elixir
+practice_input = [
+"..@@.@@@@.",
+"@@@.@.@.@@",
+"@@@@@.@.@@",
+"@.@@@@..@.",
+"@@.@@@@.@@",
+".@@@@@@@.@",
+".@.@.@.@@@",
+"@.@@@.@@@@",
+".@@@@@@@@.",
+"@.@.@@@.@.",
+]
+
+puzzle_input = Utilities.read_data(4) |> Utilities.to_list()
+# puzzle_input = practice_input
+```
+
+```elixir
+defmodule DayFour do
+  @codepoints %{
+    "@" => 64,
+    "." => 46
+  }
+  def part_one(puzzle_input) do
+    Counter.start_link(0)
+    puzzle_input
+    |> DayFour.pad_input() 
+    |> DayFour.scan_rows()
+    
+    Counter.value() |> IO.inspect(label: "Rolls accessed: Final")
+    Counter.stop()
+  end
+  
+
+  def pad_input(puzzle_input) do
+    size_across = 
+      puzzle_input
+      |> Enum.at(0)
+      |> String.length()
+
+      puzzle_input
+      |> List.insert_at(0, String.duplicate(".", size_across))
+      |> List.insert_at(-1, String.duplicate(".", size_across))
+      |> Enum.map(fn row -> 
+          row
+          |> String.pad_leading(size_across + 1, ".")
+          |> String.pad_trailing(size_across + 2, ".")
+        end)
+    
+    
+  end
+
+  # we want to see three rows at a time
+  def scan_rows(puzzle_input) do
+    puzzle_input = Enum.with_index(puzzle_input)
+    {_last_row, last_index} = Enum.at(puzzle_input, -1)
+    
+    Enum.reduce_while(puzzle_input, 0, fn {row, index}, acc -> 
+      if index + 1 == last_index do
+        {:halt, acc} 
+      else
+        {row_1, _row_1_index} = {row, index}
+        {row_2, _row_2_index} = Enum.at(puzzle_input, index + 1)
+        {row_3, _row_3_index} = Enum.at(puzzle_input, index + 2)
+        # row two is the target row!
+        scan_row(row_2, row_1, row_3)
+        {:cont, acc}
+      end
+
+      
+    end)
+  end
+
+  # row two is the target row!
+  def scan_row(target_row, row_above, row_below) do
+    target_row_with_index = String.to_charlist(target_row) |> Enum.with_index()
+    row_above_char = String.to_charlist(row_above)
+    row_below_char = String.to_charlist(row_below)
+    target_row_char = String.to_charlist(target_row)
+    
+    Enum.each(target_row_with_index, fn {slot, slot_index} -> 
+        if slot != Map.get(@codepoints, "@") do
+          nil
+        else
+          vertical_count = check_above_and_below(slot_index, row_above_char, row_below_char)
+          horizontal_count = check_side_to_side(slot_index, target_row_char)
+          diagnoal_count = check_diagonals(slot_index, row_above_char, row_below_char)
+
+          total_count = Enum.sum([vertical_count, horizontal_count, diagnoal_count])
+          if total_count < 4 do
+            Counter.increment()
+          end
+        end
+      end)
+  end
+
+  def check_above_and_below(slot_index, row_above, row_below) do
+    codepoint = Map.get(@codepoints, "@")
+    slot_above = Enum.at(row_above, slot_index)
+    slot_below = Enum.at(row_below, slot_index)
+    
+    cond do
+      slot_above == codepoint and slot_below == codepoint ->
+        2
+      slot_above == codepoint or slot_below == codepoint ->
+        1
+      true -> 
+        0
+    end
+  end
+
+  def check_side_to_side(slot_index, target_row) do
+    codepoint = Map.get(@codepoints, "@")
+    slot_left = Enum.at(target_row, slot_index - 1)
+    slot_right = Enum.at(target_row, slot_index + 1)
+
+    cond do
+      slot_left == codepoint and slot_right == codepoint ->
+        2
+      slot_left == codepoint or slot_right == codepoint ->
+        1
+      true -> 
+        0
+    end
+  end
+
+  def check_diagonals(slot_index, row_above, row_below) do
+    codepoint = Map.get(@codepoints, "@")
+    top_left = Enum.at(row_above, slot_index - 1)
+    top_right = Enum.at(row_above, slot_index + 1)
+    bottom_left = Enum.at(row_below, slot_index - 1)
+    bottom_right = Enum.at(row_below, slot_index + 1)
+
+    [top_left, top_right, bottom_left, bottom_right]
+    |> Enum.filter(fn slot -> 
+        slot == codepoint
+      end)
+    |> Enum.map(fn _slot -> 1 end)
+    |> Enum.sum()
+  end
+  
+  def check_size(puzzle_input) do
+    size_across = 
+      puzzle_input
+      |> Enum.at(0)
+      |> String.length()
+
+    size_down = length(puzzle_input)
+
+    IO.inspect(size_across)
+    IO.inspect(size_down)
+  end
+
+  # for each roll of paper in the row (is @ )
+  # looks the spot above, below, left, right, top-right, top-left, bottom-right, bottom,left
+  # if it's a @, remember
+  # if there's more than four, don't count
+  # if there's less than four, do count
+
+  # maybe pad the whole thing with arrays with dots in
+
+    # we want to see three rows at a time
+  def scan_rows_two(puzzle_input) do
+    puzzle_input = Enum.with_index(puzzle_input)
+    {_last_row, last_index} = Enum.at(puzzle_input, -1)
+    
+    new_grid = Enum.reduce_while(puzzle_input, [], fn {row, index}, acc -> 
+      if index + 1 == last_index do
+        {:halt, acc} 
+      else
+        {row_1, _row_1_index} = {row, index}
+        {row_2, _row_2_index} = Enum.at(puzzle_input, index + 1)
+        {row_3, _row_3_index} = Enum.at(puzzle_input, index + 2)
+        # row two is the target row!
+        new_row = scan_row_two(row_2, row_1, row_3) |> List.to_string()
+        {:cont, [new_row | acc]}
+      end
+    end)
+    Counter.value() |> IO.inspect(label: "Rolls removed total")
+    new_grid |> Enum.reverse()
+  end
+
+  # row two is the target row!
+  def scan_row_two(target_row, row_above, row_below) do
+    target_row_with_index = String.to_charlist(target_row) |> Enum.with_index()
+    row_above_char = String.to_charlist(row_above)
+    row_below_char = String.to_charlist(row_below)
+    target_row_char = String.to_charlist(target_row)
+    
+    Enum.map(target_row_with_index, fn {slot, slot_index} -> 
+        if slot != Map.get(@codepoints, "@") do
+          {slot, slot_index}
+        else
+          vertical_count = check_above_and_below(slot_index, row_above_char, row_below_char)
+          horizontal_count = check_side_to_side(slot_index, target_row_char)
+          diagnoal_count = check_diagonals(slot_index, row_above_char, row_below_char)
+
+          total_count = Enum.sum([vertical_count, horizontal_count, diagnoal_count])
+          if total_count < 4 do
+            Counter.increment()
+            IO.inspect(:roll_removed)
+            {Map.get(@codepoints, "."), slot_index}
+            
+          else
+            {slot, slot_index}
+          end
+        end
+      end)
+    |> Enum.map(fn {slot, _index} -> slot end)
+  end
+  
+
+  def part_two(puzzle_input) do
+    Counter.start_link(0)
+    do_a_bunch_of_times(puzzle_input, 1000)
+  end
+    
+
+  def do_a_bunch_of_times(_puzzle_input, 0) do
+    Counter.value() |> IO.inspect(label: "TOTAL: Accessible Rolls")
+    Counter.stop()
+  end
+
+  def do_a_bunch_of_times(puzzle_input, remaining) do
+    puzzle_input = 
+      puzzle_input
+      |> DayFour.pad_input() 
+      |> DayFour.scan_rows_two()
+    
+    Counter.value() |> IO.inspect(label: "Accessible Rolls")
+    do_a_bunch_of_times(puzzle_input, remaining - 1)
+  end
+    
+end
+```
+
+```elixir
+DayFour.part_two(puzzle_input)
+
+```
