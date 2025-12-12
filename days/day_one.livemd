@@ -110,26 +110,23 @@ puzzle_input = Utilities.read_data(1) |> Utilities.to_list()
 ```elixir
 defmodule DayOne do
 
-  def part_one(puzzle_input) do
-    Counter.start_link(0)
     # parse out the direction and the integer - done
     # track where the dial ends up pointing
     # count the number of times it points at zero
+  def part_one(puzzle_input) do
+    Counter.start_link(0)
     parsed_instructions = Enum.map(puzzle_input, &dial_parser(&1))
     inital_location = 50
     number_of_zeros = 0
 
     {final_location, resultant_zeros} = Enum.reduce(parsed_instructions, {inital_location, number_of_zeros}, fn {direction, amount}, {current_location, count_of_zeros} ->
       location = turn_dial(current_location, direction, amount)
-      IO.inspect(location)
       if location == 0 do
         {location, count_of_zeros + 1}
       else
         {location, count_of_zeros}
       end
     end)
-    IO.inspect(resultant_zeros, label: :number_of_zeros)
-    IO.inspect(final_location, label: :final_location)
     ### Part Two
     part_two_result = Counter.value()
     IO.inspect(part_two_result, label: :part_two_results)
@@ -145,8 +142,6 @@ defmodule DayOne do
     ### Part Two
     if result == 0 do
       Counter.increment()
-      IO.inspect("xtra zero!")
-      IO.inspect(Counter.value())
     end
     turn_dial(result, direction, amount - 1)
   end
