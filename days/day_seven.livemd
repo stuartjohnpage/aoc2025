@@ -1,0 +1,82 @@
+# Day Seven
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+```elixir
+defmodule Utilities do
+  @moduledoc """
+  Provides utility functions to be used across days
+  """
+
+  def read_data(day) do
+    day_as_string =
+      day
+      |> Integer.to_string()
+      |> String.pad_leading(2, "0")
+
+    Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
+    |> Path.expand()
+    |> File.read!()
+  end
+
+  def to_list(big_string) do
+    String.split(big_string, "\n")
+  end
+end
+```
+
+```elixir
+defmodule Counter do
+  use Agent
+
+  def start_link(initial_value) do
+    Agent.start_link(fn -> initial_value end, name: __MODULE__)
+  end
+
+  def stop() do
+    Agent.stop(__MODULE__, :normal, :infinity)
+  end
+
+  def value do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def increment do
+    Agent.update(__MODULE__, &(&1 + 1))
+  end
+
+  def increase_by_value(value) do
+    Agent.update(__MODULE__, &(&1 + value))
+  end
+end
+```
+
+```elixir
+practice_input = [
+  ".......S.......",
+  "...............",
+  ".......^.......",
+  "...............",
+  "......^.^......",
+  "...............",
+  ".....^.^.^.....",
+  "...............",
+  "....^.^...^....",
+  "...............",
+  "...^.^...^.^...",
+  "...............",
+  "..^...^.....^..",
+  "...............",
+  ".^.^.^.^.^...^.",
+  "..............."
+]
+
+puzzle_input = Utilities.read_data(7) |> Utilities.to_list()
+puzzle_input = practice_input
+```

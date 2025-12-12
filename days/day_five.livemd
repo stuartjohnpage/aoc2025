@@ -1,0 +1,191 @@
+# Day Five
+
+## Section
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.11.3"}
+])
+```
+
+```elixir
+defmodule Utilities do
+  @moduledoc """
+  Provides utility functions to be used across days
+  """
+
+  def read_data(day) do
+    day_as_string =
+      day
+      |> Integer.to_string()
+      |> String.pad_leading(2, "0")
+
+    Path.join(__DIR__, "../data/day_#{day_as_string}_input.txt")
+    |> Path.expand()
+    |> File.read!()
+  end
+
+  def to_list(big_string) do
+    String.split(big_string, "\n")
+  end
+end
+```
+
+```elixir
+defmodule Counter do
+  use Agent
+
+  def start_link(initial_value) do
+    Agent.start_link(fn -> initial_value end, name: __MODULE__)
+  end
+
+  def stop() do
+    Agent.stop(__MODULE__, :normal, :infinity)
+  end
+
+  def value do
+    Agent.get(__MODULE__, & &1)
+  end
+
+  def increment do
+    Agent.update(__MODULE__, &(&1 + 1))
+  end
+
+  def increase_by_value(value) do
+    Agent.update(__MODULE__, &(&1 + value))
+  end
+end
+```
+
+### --- Day 5: Cafeteria ---
+
+As the forklifts break through the wall, the Elves are delighted to discover that there was a cafeteria on the other side after all.
+
+You can hear a commotion coming from the kitchen. "At this rate, we won't have any time left to put the wreaths up in the dining hall!" Resolute in your quest, you investigate.
+
+"If only we hadn't switched to the new inventory management system right before Christmas!" another Elf exclaims. You ask what's going on.
+
+The Elves in the kitchen explain the situation: because of their complicated new inventory management system, they can't figure out which of their ingredients are fresh and which are spoiled. When you ask how it works, they give you a copy of their database (your puzzle input).
+
+The database operates on ingredient IDs. It consists of a list of fresh ingredient ID ranges, a blank line, and a list of available ingredient IDs. For example:
+
+```
+3-5
+10-14
+16-20
+12-18
+
+1
+5
+8
+11
+17
+32
+```
+
+The fresh ID ranges are inclusive: the range 3-5 means that ingredient IDs 3, 4, and 5 are all fresh. The ranges can also overlap; an ingredient ID is fresh if it is in any range.
+
+The Elves are trying to determine which of the available ingredient IDs are fresh. In this example, this is done as follows:
+
+Ingredient ID 1 is spoiled because it does not fall into any range.
+Ingredient ID 5 is fresh because it falls into range 3-5.
+Ingredient ID 8 is spoiled.
+Ingredient ID 11 is fresh because it falls into range 10-14.
+Ingredient ID 17 is fresh because it falls into range 16-20 as well as range 12-18.
+Ingredient ID 32 is spoiled.
+So, in this example, 3 of the available ingredient IDs are fresh.
+
+Process the database file from the new inventory management system. How many of the available ingredient IDs are fresh?
+
+```elixir
+practice_input = [
+"3-5",
+"10-14",
+"16-20",
+"12-18",
+"",
+"1",
+"5",
+"8",
+"11",
+"17",
+"32"
+]
+
+puzzle_input = Utilities.read_data(5) |> Utilities.to_list()
+puzzle_input = practice_input
+```
+
+```elixir
+defmodule DayFive do
+  def part_one(puzzle_input) do
+    Counter.start_link(0)
+    #first seperarte out the ranges.
+    {ranges, [_ignore| numbers]} = Enum.split_with(puzzle_input, fn input -> String.contains?(input, "-") end)
+    
+    ranges = Enum.map(ranges, &string_to_range(&1))
+    numbers = Enum.map(numbers, fn number -> String.to_integer(number) end)
+
+    Enum.each(numbers, fn number -> 
+      Enum.reduce_while(ranges, 0, fn range, acc -> 
+          if number in range do
+            Counter.increment()
+            {:halt, acc + 1}
+          else
+            {:cont, acc}
+          end
+        end)
+    end)
+
+    IO.inspect(Counter.value(), label: :fresh_ingredients)
+    Counter.stop()
+  end
+
+  # def part_two(puzzle_input) do
+  #   Counter.start_link(0)
+  #   {ranges, _ignore} = Enum.split_with(puzzle_input, fn input -> String.contains?(input, "-") end)
+  #   ranges = Enum.map(ranges, &string_to_range(&1))
+  #   first_range = Enum.at(ranges, 0)
+  #   final_range = combine_ranges(ranges, first_range)
+  #   IO.inspect(final_range)
+  #   IO.inspect(Range.size(final_range))
+  #   Counter.stop()
+  # end
+
+  # def combine_ranges(ranges, first_range_min..first_range_max) do
+  #   Enum.reduce(ranges, first_range_min..first_range_max, fn range_min..range_max, min..max -> 
+  #     cond do
+  #       range_min < min and range_max > max ->
+  #         range_min..range_max
+  #       range_min < min ->
+  #         range_min..max
+  #       range_max > max ->
+  #         min..range_max
+  #       true ->
+  #         min..max  
+  #     end 
+  #   end)
+  # end
+
+  
+  # get the ranges (turn into ranges) and the figures to check
+
+  # maybe a mapset of all numbers that are good - that should make lookups as we check 
+  # each number easy
+  # do we care about order? I don't think so (for part one at any rate)
+  # once you have the mapset, just check
+  # you could even do two mapsets, and check the intersection?
+
+
+  # nah, this will take too long. You're going to have to keep them as ranges I think.
+  def string_to_range(string_range) do
+    [first, last] = String.split(string_range, "-")
+    Range.new(String.to_integer(first), String.to_integer(last))
+    
+  end
+end
+```
+
+```elixir
+DayFive.part_two(puzzle_input)
+```
